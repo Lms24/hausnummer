@@ -5,5 +5,8 @@
 	// Static files only: no Worker code runs, nothing is logged by the app.
 	"assets": {
 		"directory": "./build"
-	}
+	},
+	"routes": [{ "pattern": "hausnummer.at", "custom_domain": true }],
+	"workers_dev": true,
+	"preview_urls": false
 }
