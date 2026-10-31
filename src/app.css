@@ -1,0 +1,99 @@
+:root {
+	color-scheme: light;
+	--bg: #f4f3ef;
+	--surface-1: #fcfcfb;
+	--surface-raised: #ffffff;
+	--surface-input: #ffffff;
+	--surface-accent: #eaf3ef;
+	--text-primary: #0b0b0b;
+	--text-secondary: #52514e;
+	--text-muted: #6b6a66;
+	--border: #e2e0da;
+	--border-strong: #c9c7c0;
+	--grid: #ecebe6;
+	--accent: #2f6f5e;
+	--accent-text: #22594b;
+	--accent-border: #bcd8cd;
+	--accent-ring: rgb(47 111 94 / 0.2);
+	--on-accent: #ffffff;
+	--series-principal: #2a78d6;
+	--series-interest: #eb6834;
+	--good-bg: #e6f4ea;
+	--good-text: #1e7a3a;
+	--good-band: rgb(30 122 58 / 0.65);
+	--bad-bg: #fdecea;
+	--bad-text: #b3261e;
+	--bad-border: #f0b8b3;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		color-scheme: dark;
+		--bg: #121211;
+		--surface-1: #1a1a19;
+		--surface-raised: #242422;
+		--surface-input: #141413;
+		--surface-accent: #17302a;
+		--text-primary: #f0efec;
+		--text-secondary: #c3c2b7;
+		--text-muted: #9a998f;
+		--border: #2e2e2b;
+		--border-strong: #47463f;
+		--grid: #2a2a27;
+		--accent: #4fa58c;
+		--accent-text: #7cc7b0;
+		--accent-border: #2c5a4d;
+		--accent-ring: rgb(79 165 140 / 0.3);
+		--on-accent: #0b1a16;
+		--series-principal: #3987e5;
+		--series-interest: #d95926;
+		--good-bg: #15301e;
+		--good-text: #6fcf8a;
+		--good-band: rgb(111 207 138 / 0.6);
+		--bad-bg: #3a1a17;
+		--bad-text: #f2867c;
+		--bad-border: #6b2a24;
+	}
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--bg: #121211;
+	--surface-1: #1a1a19;
+	--surface-raised: #242422;
+	--surface-input: #141413;
+	--surface-accent: #17302a;
+	--text-primary: #f0efec;
+	--text-secondary: #c3c2b7;
+	--text-muted: #9a998f;
+	--border: #2e2e2b;
+	--border-strong: #47463f;
+	--grid: #2a2a27;
+	--accent: #4fa58c;
+	--accent-text: #7cc7b0;
+	--accent-border: #2c5a4d;
+	--accent-ring: rgb(79 165 140 / 0.3);
+	--on-accent: #0b1a16;
+	--series-principal: #3987e5;
+	--series-interest: #d95926;
+	--good-bg: #15301e;
+	--good-text: #6fcf8a;
+	--good-band: rgb(111 207 138 / 0.6);
+	--bad-bg: #3a1a17;
+	--bad-text: #f2867c;
+	--bad-border: #6b2a24;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text-primary);
+	font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	font-size: 15px;
+	line-height: 1.45;
+	-webkit-font-smoothing: antialiased;
+}
