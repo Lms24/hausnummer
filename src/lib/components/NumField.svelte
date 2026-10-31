@@ -18,6 +18,19 @@
 	} = $props();
 
 	const id = $props.id();
+
+	// What the input shows. Kept separate from `value` so a cleared field stays
+	// empty while typing (and counts as 0) instead of snapping back to "0".
+	let text = $state(String(value));
+	const parse = (t: string) => {
+		const n = parseFloat(t);
+		return Number.isFinite(n) ? n : 0;
+	};
+
+	// Follow changes made elsewhere (reset, switching rate type, loading saved values).
+	$effect(() => {
+		if (parse(text) !== value) text = String(value);
+	});
 </script>
 
 <div class="field">
@@ -30,7 +43,11 @@
 			{step}
 			{min}
 			{max}
-			bind:value={() => value, (v) => (value = Number.isFinite(v) ? v : 0)}
+			value={text}
+			oninput={(e) => {
+				text = e.currentTarget.value;
+				value = parse(text);
+			}}
 		/>
 		{#if suffix}<span class="suffix">{suffix}</span>{/if}
 	</div>

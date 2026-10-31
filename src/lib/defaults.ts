@@ -27,7 +27,7 @@ export function defaultInputs(): Inputs {
 	return {
 		persons: [
 			{ name: 'Ich', netMonthly: 2800, payments: 14, equity: 60000 },
-			{ name: 'Partnerin', netMonthly: 2600, payments: 14, equity: 40000 }
+			{ name: 'Partner*in', netMonthly: 2600, payments: 14, equity: 40000 }
 		],
 		otherDebtMonthly: 0,
 		priceMode: 'price',

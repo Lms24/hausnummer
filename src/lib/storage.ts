@@ -28,8 +28,8 @@ export function load(): Inputs {
 			const saved = JSON.parse(raw);
 			const inputs = merge(defaultInputs(), saved);
 			if (!('useAllEquity' in saved)) migrateDefaults(inputs);
-			// The UI used to be English; translate untouched default names.
-			const renamed: Record<string, string> = { Me: 'Ich', Her: 'Partnerin' };
+			// Update untouched default names from older versions.
+			const renamed: Record<string, string> = { Me: 'Ich', Her: 'Partner*in', Partnerin: 'Partner*in' };
 			for (const p of inputs.persons) p.name = renamed[p.name] ?? p.name;
 			return inputs;
 		}
