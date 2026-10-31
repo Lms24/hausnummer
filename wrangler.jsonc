@@ -4,9 +4,13 @@
 	"compatibility_date": "2026-10-01",
 	// Static files only: no Worker code runs, nothing is logged by the app.
 	"assets": {
-		"directory": "./build"
+		"directory": "./build",
+		"not_found_handling": "404-page"
 	},
-	"routes": [{ "pattern": "hausnummer.at", "custom_domain": true }],
-	"workers_dev": true,
+	"routes": [
+		{ "pattern": "hausnummer.at", "custom_domain": true },
+		{ "pattern": "www.hausnummer.at", "custom_domain": true }
+	],
+	"workers_dev": false,
 	"preview_urls": false
 }

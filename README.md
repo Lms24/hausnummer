@@ -20,6 +20,7 @@ Requires Node ≥ 22.17. The Node version is pinned via Volta in `package.json`.
 ```sh
 npm install
 npm run dev        # http://localhost:5173
+npm test           # calculation tests (also run before every build)
 npm run build      # static site in ./build, host it anywhere
 ```
 
@@ -27,7 +28,7 @@ npm run build      # static site in ./build, host it anywhere
 
 Live at **https://hausnummer.at**, served as static assets by Cloudflare Workers (see `wrangler.jsonc`).
 
-Every push to `main` is built and deployed automatically by Cloudflare Workers Builds. To deploy manually from your machine: `npm run deploy`.
+Every push to `main` is built and deployed automatically by Cloudflare Workers Builds. The build runs the tests first, so a failing test stops the deploy. To deploy manually from your machine: `npm run deploy`.
 
 ## Austrian rules used (as of October 2026)
 
@@ -40,13 +41,13 @@ Every push to `main` is built and deployed automatically by Cloudflare Workers B
 
 These limits came from the **KIM-Verordnung** (1 Aug 2022 – 30 Jun 2025). Since 1 July 2025 they are no longer a binding regulation. They continue as an FMA circular, and the FMSG expects banks to deviate for at most 20 % of new loans per quarter. In practice, banks still apply them by default.
 
-**Purchase costs (Kaufnebenkosten), Vienna and Lower Austria:** Grunderwerbsteuer 3.5 %, Grundbuch entry 1.1 %, Pfandrecht entry 1.2 % of the registered mortgage (usually ~120 % of the loan), agent fee up to 3 % + 20 % VAT, notary/lawyer + escrow ~1.5–2 % + VAT, bank processing fee 0–2 %. The temporary Grundbuch/Pfandrecht fee exemption for a main residence (up to €500k) applied only to applications filed before 1 July 2026, so it is **not** applied here.
+**Purchase costs (Kaufnebenkosten), Vienna and Lower Austria:** Grunderwerbsteuer 3.5 %, Grundbuch entry 1.1 %, Pfandrecht entry 1.2 % of the registered mortgage (usually ~120 % of the loan), agent fee up to 3 % + 20 % VAT, notary/lawyer + escrow ~1–2 % + VAT (default 1.5 %), bank processing fee 0–2 % (default 0.5 %). The temporary Grundbuch/Pfandrecht fee exemption for a main residence (up to €500k) applied only to applications filed before 1 July 2026, so it is **not** applied here.
 
-**Default interest rates** (nominal, good credit, Oct 2026): variable 3.45 %, 5 y fixed 3.60 %, 10 y 3.80 %, 15 y 3.95 %, 20 y 4.10 %, 25 y 4.25 %, 30 y 4.40 %. All of these can be edited in the app.
+**Default interest rates** (nominal, good credit, Oct 2026): variable 3.55 %, 5 y fixed 3.75 %, 10 y 4.00 %, 15 y 4.15 %, 20 y 4.20 %, 25 y 4.30 %, 30 y 4.40 %. All of these can be edited in the app.
 
 The comparison table is built from:
 - Optifin, 21 Oct 2026: variable 3.20 %, 10 y 3.75 %, 20 y 3.95 %, 30 y 4.35 % (best case); 3M Euribor 2.66 %
-- Infina Kredit-Index, Oct 2026: variable 3.66 %, 20 y fixed 4.33 %
+- Infina Kredit-Index, Oct 2026: variable 3.66 %, 20 y fixed 4.33 %; Q3 averages 10 y 4.21 %, 15 y 4.34 %
 - OeNB: average rate on new housing loans 3.61 % (Aug 2026)
 
 ## Sources
@@ -58,3 +59,7 @@ The comparison table is built from:
 - Fee exemption: https://www.bmf.gv.at/presse/pressemeldungen/2024/maerz/abschaffung-grundbuch-pfandrechtseintragung.html, https://linda.lindeverlag.at/Dokument/632776/
 
 This is a planning tool, not financial advice. Get binding offers from at least two banks or a broker.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

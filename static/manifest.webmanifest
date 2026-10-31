@@ -1,0 +1,10 @@
+{
+	"name": "Hausnummer – Wohnkreditrechner für Wien",
+	"short_name": "Hausnummer",
+	"lang": "de-AT",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#f4f3ef",
+	"theme_color": "#2f6f5e",
+	"icons": [{ "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }]
+}

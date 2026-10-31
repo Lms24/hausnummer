@@ -79,6 +79,19 @@
 		name="description"
 		content="Privater Wohnkreditrechner für den Immobilienkauf in und um Wien – nach den österreichischen Kreditvergaberegeln."
 	/>
+	<link rel="canonical" href="https://hausnummer.at/" />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://hausnummer.at/" />
+	<meta property="og:locale" content="de_AT" />
+	<meta property="og:title" content="Hausnummer – Wohnkreditrechner für Wien" />
+	<meta
+		property="og:description"
+		content="Was können wir uns leisten? Max. Kaufpreis, Kredit und Monatsrate nach österreichischen Kreditregeln. Kein Tracking, alles bleibt im Browser."
+	/>
+	<meta property="og:image" content="https://hausnummer.at/og.png" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <header>
@@ -90,6 +103,7 @@
 		<div>
 			<h1>Hausnummer</h1>
 			<p>Gebt eure Zahlen ein, ihr bekommt eine Hausnummer: was ihr euch in und um Wien leisten könnt. Alles bleibt in diesem Browser.</p>
+			<span class="stand">Zinssätze &amp; Kreditregeln: Stand {RATES_AS_OF}</span>
 		</div>
 	</div>
 </header>
@@ -630,9 +644,18 @@
 
 <footer>
 	<p>
-		Hausnummer speichert eure Eingaben nur in diesem Browser (localStorage). Keine Konten, keine Analyse,
-		kein Tracking.
+		<strong>Unverbindliche Schätzung, keine Finanzberatung.</strong> Zinssätze und Regeln: Stand {RATES_AS_OF}.
+		Verbindliche Konditionen bekommt ihr nur von eurer Bank.
 	</p>
+	<p>
+		Hausnummer speichert eure Eingaben nur in diesem Browser (localStorage). Keine Konten, keine Cookies,
+		keine Analyse, kein Tracking.
+	</p>
+	<nav>
+		<a href="/impressum">Impressum</a>
+		<a href="/datenschutz">Datenschutz</a>
+		<a href="https://github.com/Lms24/hausnummer" rel="noopener">Quellcode</a>
+	</nav>
 </footer>
 
 <style>
@@ -1176,5 +1199,22 @@
 		padding-bottom: 40px;
 		color: var(--text-muted);
 		font-size: 13px;
+	}
+	footer p {
+		margin: 0 0 6px;
+	}
+	footer nav {
+		display: flex;
+		gap: 16px;
+		margin-top: 10px;
+	}
+	footer a {
+		color: var(--text-secondary);
+	}
+	.stand {
+		display: inline-block;
+		margin-top: 4px;
+		font-size: 12px;
+		color: var(--text-muted);
 	}
 </style>
