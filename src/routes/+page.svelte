@@ -241,6 +241,30 @@
 			</div>
 		{/if}
 
+		<div class="field">
+			<span class="lbl">Makler</span>
+			<div class="seg" role="group" aria-label="Kauf über Makler">
+				<button
+					class:active={inputs.costs.useMakler}
+					aria-pressed={inputs.costs.useMakler}
+					onclick={() => (inputs.costs.useMakler = true)}>Mit Makler</button
+				>
+				<button
+					class:active={!inputs.costs.useMakler}
+					aria-pressed={!inputs.costs.useMakler}
+					onclick={() => (inputs.costs.useMakler = false)}>Ohne Makler</button
+				>
+			</div>
+			<small class="hint">
+				{#if inputs.costs.useMakler}
+					+{pct(inputs.costs.makler)} Provision vom Kaufpreis ({eur((sc.price * inputs.costs.makler) / 100)}), aus
+					Eigenmitteln
+				{:else}
+					Keine Provision, z. B. bei Privatverkauf oder direkt vom Bauträger
+				{/if}
+			</small>
+		</div>
+
 		<div class="slider">
 			<div class="slider-head">
 				<span>Eigenanteil <strong>{pct(sc.share)}</strong></span>
@@ -790,6 +814,10 @@
 	.lbl {
 		font-size: 13px;
 		color: var(--text-secondary);
+	}
+	.hint {
+		font-size: 12px;
+		color: var(--text-muted);
 	}
 	.facts {
 		display: flex;
