@@ -1,5 +1,5 @@
 import type { Inputs } from './calc';
-import { defaultInputs } from './defaults';
+import { defaultInputs, PREVIOUS_DEFAULTS } from './defaults';
 
 // Everything stays in this browser's localStorage. Nothing is sent anywhere.
 const KEY = 'hausnummer:v1';
@@ -25,7 +25,9 @@ export function load(): Inputs {
 	try {
 		const raw = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY);
 		if (raw) {
-			const inputs = merge(defaultInputs(), JSON.parse(raw));
+			const saved = JSON.parse(raw);
+			const inputs = merge(defaultInputs(), saved);
+			if (!('useAllEquity' in saved)) migrateDefaults(inputs);
 			// The UI used to be English; translate untouched default names.
 			const renamed: Record<string, string> = { Me: 'Ich', Her: 'Partnerin' };
 			for (const p of inputs.persons) p.name = renamed[p.name] ?? p.name;
@@ -35,6 +37,22 @@ export function load(): Inputs {
 		// Private mode or corrupted data: fall back to defaults.
 	}
 	return defaultInputs();
+}
+
+/**
+ * Saves from before Nov 2026 hold the old default rates and fees, and an
+ * own-funds share measured against price + costs. Replace values the user
+ * never changed with the current defaults.
+ */
+function migrateDefaults(inputs: Inputs): void {
+	const fresh = defaultInputs();
+	for (const k of Object.keys(PREVIOUS_DEFAULTS.rates) as (keyof typeof PREVIOUS_DEFAULTS.rates)[]) {
+		if (inputs.rates[k] === PREVIOUS_DEFAULTS.rates[k]) inputs.rates[k] = fresh.rates[k];
+	}
+	for (const k of Object.keys(PREVIOUS_DEFAULTS.costs) as (keyof typeof PREVIOUS_DEFAULTS.costs)[]) {
+		if (inputs.costs[k] === PREVIOUS_DEFAULTS.costs[k]) inputs.costs[k] = fresh.costs[k];
+	}
+	inputs.equityShare = fresh.equityShare;
 }
 
 export function save(inputs: Inputs): void {

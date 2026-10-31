@@ -67,8 +67,14 @@ export interface Inputs {
 	otherDebtMonthly: number;
 	priceMode: 'price' | 'equity';
 	price: number;
-	/** Share of the total cost (price + Nebenkosten) paid with own funds, % */
+	/**
+	 * Share of the purchase price paid with own funds, % (the usual Austrian
+	 * "Eigenanteil"); the loan covers the rest of the price. Purchase costs
+	 * always come from own funds on top of this.
+	 */
 	equityShare: number;
+	/** In price mode: put in all own funds (ignores equityShare) */
+	useAllEquity: boolean;
 	termYears: number;
 	fixation: Fixation;
 	/** Nominal interest rates, % p.a. */
@@ -191,17 +197,25 @@ export function costItems(c: Costs, price: number, loan: number): CostItem[] {
 export interface Affordability {
 	income: number;
 	equity: number;
-	/** Max monthly payment for this loan (40 % rule minus other debts) */
+	/** Max payment the 40 % rule allows, assessed at assessRate */
 	maxPayment: number;
 	assessRate: number;
 	/** Max loan by income alone */
 	maxLoanByIncome: number;
+	/** Payment at the actual (non-stressed) rate for maxLoanByIncome */
+	actualPaymentAtMaxIncomeLoan: number;
 	/** Max loan considering income AND own funds */
 	maxLoan: number;
 	maxPrice: number;
 	binding: 'income' | 'equity';
-	/** Minimum own-funds share of total cost permitted by the LTV rule, % */
+	/** Purchase costs at the max price (paid from own funds) */
+	costsAtMax: number;
+	/** Max price if bought without an agent; null when no agent is assumed */
+	maxPriceWithoutMakler: number | null;
+	/** Minimum own-funds share of the price permitted by the LTV rule, % */
 	minEquitySharePct: number;
+	/** Own funds needed at max. LTV incl. purchase costs, % of price */
+	minOwnFundsPctOfPrice: number;
 }
 
 export function affordability(inp: Inputs, termYears = inp.termYears): Affordability {
@@ -209,22 +223,25 @@ export function affordability(inp: Inputs, termYears = inp.termYears): Affordabi
 	const income = householdIncome(inp);
 	const equity = totalEquity(inp);
 	const rate = inp.rates[inp.fixation];
-	const assessRate = rate + (stressApplies(inp) ? limits.stressAddon : 0);
+	const term = Math.min(termYears, limits.maxTerm);
+	const assessRate = rate + (stressApplies({ ...inp, termYears }) ? limits.stressAddon : 0);
 	const maxPayment = Math.max(0, (income * limits.dsti) / 100 - inp.otherDebtMonthly);
-	const maxLoanByIncome = presentValue(maxPayment, assessRate, Math.min(termYears, limits.maxTerm));
+	const maxLoanByIncome = presentValue(maxPayment, assessRate, term);
 
-	const { cp, cl } = costFractions(inp.costs);
+	const maxPriceFor = (costs: Costs) => {
+		const { cp, cl } = costFractions(costs);
+		const ltv = limits.ltv / 100;
+		// Price where own funds exactly cover (1 - LTV) of the price plus all costs.
+		const byEquity = equity / (1 - ltv + cp + ltv * cl);
+		// Price when borrowing the full income-based maximum.
+		const byIncome = (equity + maxLoanByIncome * (1 - cl)) / (1 + cp);
+		return byEquity <= byIncome
+			? { price: byEquity, loan: ltv * byEquity, binding: 'equity' as const, cp, cl }
+			: { price: byIncome, loan: maxLoanByIncome, binding: 'income' as const, cp, cl };
+	};
+
+	const max = maxPriceFor(inp.costs);
 	const ltv = limits.ltv / 100;
-	// Price where own funds exactly cover (1 - LTV) of the price plus all costs.
-	const priceByEquity = equity / (1 - ltv + cp + ltv * cl);
-	// Price when borrowing the full income-based maximum.
-	const priceByIncome = (equity + maxLoanByIncome * (1 - cl)) / (1 + cp);
-
-	const binding = priceByEquity <= priceByIncome ? 'equity' : 'income';
-	const maxPrice = Math.min(priceByEquity, priceByIncome);
-	const maxLoan = binding === 'equity' ? ltv * priceByEquity : maxLoanByIncome;
-
-	const minEquitySharePct = (1 - ltv / (1 + cp + ltv * cl)) * 100;
 
 	return {
 		income,
@@ -232,16 +249,33 @@ export function affordability(inp: Inputs, termYears = inp.termYears): Affordabi
 		maxPayment,
 		assessRate,
 		maxLoanByIncome,
-		maxLoan,
-		maxPrice,
-		binding,
-		minEquitySharePct
+		actualPaymentAtMaxIncomeLoan: annuity(maxLoanByIncome, rate, term),
+		maxLoan: max.loan,
+		maxPrice: max.price,
+		binding: max.binding,
+		costsAtMax: max.price * max.cp + max.loan * max.cl,
+		maxPriceWithoutMakler: inp.costs.useMakler
+			? maxPriceFor({ ...inp.costs, useMakler: false }).price
+			: null,
+		minEquitySharePct: 100 - limits.ltv,
+		minOwnFundsPctOfPrice: (1 - ltv + max.cp + ltv * max.cl) * 100
 	};
+}
+
+/** Own-funds share of the price (%) that uses exactly all own funds at `price`. */
+export function allEquityShare(inp: Inputs, price = inp.price): number {
+	const { cp, cl } = costFractions(inp.costs);
+	if (price <= 0) return 100;
+	// equity = s·P + P·cp + (1 - s)·P·cl  →  s = (E/P - cp - cl) / (1 - cl)
+	const s = (totalEquity(inp) / price - cp - cl) / (1 - cl);
+	return Math.min(100, Math.max(0, s * 100));
 }
 
 export interface Scenario {
 	price: number;
 	loan: number;
+	/** Own-funds share of the price actually used, % */
+	share: number;
 	costs: number;
 	costItems: CostItem[];
 	totalCost: number;
@@ -254,6 +288,8 @@ export interface Scenario {
 	totalInterest: number;
 	totalPaid: number;
 	dstiPct: number;
+	/** Whether the 40 % check uses the stress rate */
+	stressed: boolean;
 	/** Payment at the stress rate, used for the 40 % check */
 	assessedMonthly: number;
 	assessedDstiPct: number;
@@ -263,21 +299,21 @@ export interface Scenario {
 
 export function scenario(inp: Inputs, termYears = inp.termYears): Scenario {
 	const { cp, cl } = costFractions(inp.costs);
-	const s = Math.min(Math.max(inp.equityShare, 0), 100) / 100;
 	const equity = totalEquity(inp);
 
+	const clampShare = (pct: number) => Math.min(Math.max(pct, 0), 100) / 100;
 	let price: number;
-	let loan: number;
+	let s: number;
 	if (inp.priceMode === 'price') {
 		price = Math.max(0, inp.price);
-		// loan = (1 - s) * total, total = price(1 + cp) + loan * cl
-		loan = ((1 - s) * price * (1 + cp)) / (1 - (1 - s) * cl);
+		s = clampShare(inp.useAllEquity ? allEquityShare(inp, price) : inp.equityShare);
 	} else {
-		// Use all own funds; the share determines how big the purchase gets.
-		const total = s > 0 ? equity / s : 0;
-		loan = total - equity;
-		price = (total - loan * cl) / (1 + cp);
+		// Use all own funds; the share determines how big the purchase gets:
+		// equity = s·P + P·cp + (1 - s)·P·cl
+		s = clampShare(inp.equityShare);
+		price = equity / (s + cp + (1 - s) * cl);
 	}
+	const loan = (1 - s) * price;
 	const costs = price * cp + loan * cl;
 	const totalCost = price + costs;
 	const equityUsed = totalCost - loan;
@@ -289,7 +325,8 @@ export function scenario(inp: Inputs, termYears = inp.termYears): Scenario {
 	const totalPaid = monthly * termYears * 12;
 
 	const income = householdIncome(inp);
-	const assessRate = rate + (stressApplies({ ...inp, termYears }) ? inp.limits.stressAddon : 0);
+	const stressed = stressApplies({ ...inp, termYears });
+	const assessRate = rate + (stressed ? inp.limits.stressAddon : 0);
 	const assessedMonthly = annuity(loan, assessRate, termYears);
 	const dstiPct = income > 0 ? ((monthly + inp.otherDebtMonthly) / income) * 100 : Infinity;
 	const assessedDstiPct =
@@ -300,6 +337,7 @@ export function scenario(inp: Inputs, termYears = inp.termYears): Scenario {
 	return {
 		price,
 		loan,
+		share: s * 100,
 		costs,
 		costItems: costItems(inp.costs, price, loan),
 		totalCost,
@@ -312,6 +350,7 @@ export function scenario(inp: Inputs, termYears = inp.termYears): Scenario {
 		totalInterest: totalPaid - loan,
 		totalPaid,
 		dstiPct,
+		stressed,
 		assessedMonthly,
 		assessedDstiPct,
 		schedule: sched,
@@ -330,7 +369,7 @@ export function scenario(inp: Inputs, termYears = inp.termYears): Scenario {
  * can bisect for its boundary.
  */
 export function feasibleShareRange(inp: Inputs): { min: number; max: number } | null {
-	const at = (s: number) => scenario({ ...inp, equityShare: s });
+	const at = (s: number) => scenario({ ...inp, useAllEquity: false, equityShare: s });
 	const bisect = (ok: (s: number) => boolean, okAtHigh: boolean) => {
 		let lo = 0;
 		let hi = 100;
@@ -343,9 +382,8 @@ export function feasibleShareRange(inp: Inputs): { min: number; max: number } | 
 		}
 		return okAtHigh ? hi : lo;
 	};
-	const lowFloor = inp.priceMode === 'equity' ? 1 : 0;
-	const minLtv = bisect((s) => s >= lowFloor && at(s).checks.ltv, true);
-	const minDsti = bisect((s) => s >= lowFloor && at(s).checks.dsti, true);
+	const minLtv = bisect((s) => at(s).checks.ltv, true);
+	const minDsti = bisect((s) => at(s).checks.dsti, true);
 	if (minLtv === null || minDsti === null) return null;
 	const min = Math.max(minLtv, minDsti);
 	let max = 100;
@@ -355,4 +393,10 @@ export function feasibleShareRange(inp: Inputs): { min: number; max: number } | 
 		max = m;
 	}
 	return min <= max ? { min, max } : null;
+}
+
+/** A share on the slider's 0.5 % grid that lies inside `range` (or its exact min). */
+export function snapShare(range: { min: number; max: number }, to: 'min' | 'max'): number {
+	const v = to === 'min' ? Math.ceil(range.min * 2) / 2 : Math.floor(range.max * 2) / 2;
+	return v >= range.min && v <= range.max ? v : to === 'min' ? range.min : range.max;
 }

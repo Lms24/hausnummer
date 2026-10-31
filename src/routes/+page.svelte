@@ -5,6 +5,7 @@
 		feasibleShareRange,
 		FIXATIONS,
 		scenario,
+		snapShare,
 		stressApplies,
 		TERMS,
 		type Inputs
@@ -33,34 +34,37 @@
 	const sc = $derived(scenario(inputs));
 	const range = $derived(feasibleShareRange(inputs));
 	const stressed = $derived(stressApplies(inputs));
-	const sliderMin = $derived(inputs.priceMode === 'equity' ? 5 : 0);
 	const comparison = $derived(
 		TERMS.map((t) => ({ t, s: scenario({ ...inputs, termYears: t }, t) }))
 	);
 	const splitRows = $derived(
-		[20, 25, 30, 40, 50, 60, 70].map((share) => ({
+		[10, 15, 20, 25, 30, 40, 50].map((share) => ({
 			share,
 			s: scenario({ ...inputs, priceMode: 'equity', equityShare: share })
 		}))
 	);
 	const shareFmt = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 });
-	/** Own funds vs. loan as a ratio, e.g. "50 : 50". */
+	/** Own share vs. loan as a ratio of the price, e.g. "50 : 50". */
 	const split = (share: number) => `${shareFmt.format(share)} : ${shareFmt.format(100 - share)}`;
 	const allOk = $derived(Object.values(sc.checks).every(Boolean));
 	const interestShare = $derived(sc.totalPaid > 0 ? (sc.totalInterest / sc.totalPaid) * 100 : 0);
+	const anyFourteen = $derived(inputs.persons.some((p) => p.payments === 14));
 
-	const pos = (v: number) =>
-		Math.min(100, Math.max(0, ((v - sliderMin) / (100 - sliderMin)) * 100));
+	const pos = (v: number) => Math.min(100, Math.max(0, v));
+
+	function setShare(v: number) {
+		inputs.useAllEquity = false;
+		inputs.equityShare = v;
+	}
 
 	function useMaxPrice() {
 		inputs.priceMode = 'price';
 		inputs.price = Math.floor(aff.maxPrice / 1000) * 1000;
-		const r = feasibleShareRange(inputs);
-		if (r) inputs.equityShare = Math.ceil(r.min * 2) / 2;
+		inputs.useAllEquity = true;
 	}
 
 	function snapToMin() {
-		if (range) inputs.equityShare = Math.min(100, Math.ceil(range.min * 2) / 2);
+		if (range) setShare(snapShare(range, 'min'));
 	}
 
 	function reset() {
@@ -100,7 +104,13 @@
 					<legend>
 						<input class="name" aria-label="Name von Person {i + 1}" bind:value={p.name} />
 					</legend>
-					<NumField label="Nettogehalt pro Monat" suffix="€" step={50} bind:value={p.netMonthly} />
+					<NumField
+						label="Nettogehalt pro Monat"
+						suffix="€"
+						step={50}
+						bind:value={p.netMonthly}
+						hint="Normales Monatsnetto, ohne 13./14. Gehalt"
+					/>
 					<div class="field">
 						<span class="lbl">Gehälter pro Jahr</span>
 						<div class="seg">
@@ -127,7 +137,7 @@
 			/>
 		</div>
 		<dl class="facts">
-			<div><dt>Haushaltsnettoeinkommen</dt><dd>{eur(aff.income)}<small>/Monat (inkl. 13./14.)</small></dd></div>
+			<div><dt>Haushaltsnettoeinkommen</dt><dd>{eur(aff.income)}<small>/Monat{anyFourteen ? ' (13./14. auf 12 Monate verteilt)' : ''}</small></dd></div>
 			<div><dt>Eigenmittel gesamt</dt><dd>{eur(aff.equity)}</dd></div>
 		</dl>
 	</section>
@@ -135,30 +145,65 @@
 	<!-- 2. Grenzen -->
 	<section class="card highlight">
 		<h2><span class="num">2</span> Was die Regeln erlauben</h2>
-		<p class="lead">
-			Bei {inputs.termYears} Jahren Laufzeit und {rate(aff.assessRate)}{stressed ? ' (Stresszins)' : ''}:
-		</p>
 		<div class="kpis">
-			<div class="kpi">
-				<span>Max. Monatsrate</span>
-				<strong>{eur(aff.maxPayment)}</strong>
-				<small>{inputs.limits.dsti} % des Nettoeinkommens{inputs.otherDebtMonthly ? ', abzüglich anderer Kredite' : ''}</small>
-			</div>
-			<div class="kpi">
-				<span>Max. Kredit laut Einkommen</span>
-				<strong>{eur(aff.maxLoanByIncome)}</strong>
-				<small>ohne Berücksichtigung der Eigenmittel</small>
+			<div class="kpi main">
+				<span>Max. Kaufpreis</span>
+				<strong>{eur(aff.maxPrice)}</strong>
+				<small>Nebenkosten schon aus Eigenmitteln bezahlt</small>
 			</div>
 			<div class="kpi">
 				<span>Max. Kredit für euch</span>
 				<strong>{eur(aff.maxLoan)}</strong>
-				<small>begrenzt durch {aff.binding === 'equity' ? 'eure Eigenmittel (90 % Beleihung)' : 'euer Einkommen (40-%-Regel)'}</small>
+				<small>{pct((aff.maxLoan / aff.maxPrice) * 100)} des Kaufpreises</small>
 			</div>
 			<div class="kpi">
-				<span>Max. Kaufpreis</span>
-				<strong>{eur(aff.maxPrice)}</strong>
-				<small>nach Abzug aller Nebenkosten</small>
+				<span>Max. Kredit laut Einkommen</span>
+				<strong>{eur(aff.maxLoanByIncome)}</strong>
+				<small>{inputs.termYears} J., {rate(inputs.rates[inputs.fixation])}, ohne Blick auf Eigenmittel</small>
 			</div>
+			<div class="kpi">
+				<span>Max. Rate laut 40-%-Regel</span>
+				<strong>{eur(aff.maxPayment)}</strong>
+				<small>
+					{#if stressed}
+						geprüft mit Stresszins {rate(aff.assessRate)}; tatsächliche Rate beim Maximalkredit:
+						{eur(aff.actualPaymentAtMaxIncomeLoan)}
+					{:else}
+						{inputs.limits.dsti} % des Nettoeinkommens{inputs.otherDebtMonthly ? ', abzüglich anderer Kredite' : ''}
+					{/if}
+				</small>
+			</div>
+		</div>
+
+		<div class="why">
+			{#if aff.binding === 'equity'}
+				<p>
+					<strong>Eure Eigenmittel begrenzen den Kaufpreis, nicht euer Einkommen.</strong> Die Bank finanziert
+					max. {inputs.limits.ltv} % des Kaufpreises, die Nebenkosten zahlt ihr selbst. Von euren
+					{eur(aff.equity)} gehen beim Maximalpreis {eur(aff.costsAtMax)} an Nebenkosten und
+					{eur(aff.maxPrice - aff.maxLoan)} sind Eigenanteil am Kaufpreis. Euer Einkommen würde einen Kredit bis
+					{eur(aff.maxLoanByIncome)} tragen.
+				</p>
+				{#if aff.maxPriceWithoutMakler}
+					<p class="muted">
+						Ohne Makler (−{pct(inputs.costs.makler)} Provision) wären es bis zu {eur(aff.maxPriceWithoutMakler)}.
+					</p>
+				{/if}
+			{:else}
+				<p>
+					<strong>Euer Einkommen begrenzt den Kaufpreis.</strong> Die Rate darf {inputs.limits.dsti} % eures
+					Nettoeinkommens nicht übersteigen. Gerechnet mit {inputs.termYears} Jahren Laufzeit und
+					{rate(inputs.rates[inputs.fixation])}{inputs.otherDebtMonthly ? ', abzüglich eurer anderen Kredite' : ''}.
+					Längere Laufzeit oder ein niedrigerer Zinssatz erhöhen den Maximalpreis.
+				</p>
+			{/if}
+			{#if stressed}
+				<p class="muted">
+					Variable Zinsen und Fixzinsphasen unter 10 Jahren prüfen Banken mit einem Aufschlag von
+					{shareFmt.format(inputs.limits.stressAddon)} %-Punkten. Deshalb ist der Maximalkredit hier niedriger als
+					bei längerer Fixzinsbindung, obwohl der Zinssatz günstiger ist.
+				</p>
+			{/if}
 		</div>
 		<button class="link" onclick={useMaxPrice}>Diesen Kaufpreis unten übernehmen →</button>
 	</section>
@@ -184,8 +229,8 @@
 
 		<div class="slider">
 			<div class="slider-head">
-				<span>Eigenmittel <strong>{pct(inputs.equityShare)}</strong></span>
-				<span>Kredit <strong>{pct(100 - inputs.equityShare)}</strong></span>
+				<span>Eigenanteil <strong>{pct(sc.share)}</strong></span>
+				<span>Kredit <strong>{pct(100 - sc.share)}</strong> des Kaufpreises</span>
 			</div>
 			<div class="track-wrap">
 				{#if range}
@@ -198,45 +243,67 @@
 				{/if}
 				<input
 					type="range"
-					min={sliderMin}
+					min="0"
 					max="100"
 					step="0.5"
-					aria-label="Anteil Eigenmittel zu Kredit"
-					bind:value={inputs.equityShare}
+					aria-label="Eigenanteil am Kaufpreis"
+					value={sc.share}
+					oninput={(e) => setShare(Number(e.currentTarget.value))}
 				/>
 			</div>
 			<p class="slider-note">
-				Anteil der <em>Gesamtkosten</em> (Kaufpreis + Nebenkosten), den ihr aus eigener Tasche zahlt.
+				Anteil des <em>Kaufpreises</em>, den ihr selbst zahlt. Die Nebenkosten ({eur(sc.costs)}) kommen zusätzlich
+				aus euren Eigenmitteln.
 				{#if range}
 					<span class="okc">Grün = zulässig</span>: {pct(range.min)}{inputs.priceMode === 'price'
 						? ` – ${pct(range.max)}`
 						: ' und mehr'}.
-					<button class="link" onclick={snapToMin}>Maximal zulässigen Kredit wählen</button>
 				{:else}
 					<span class="bad">Bei diesem Kaufpreis erfüllt kein Anteil alle Regeln.</span>
 				{/if}
 			</p>
+			{#if inputs.priceMode === 'price'}
+				<div class="slider-actions">
+					<label class="check">
+						<input
+							type="checkbox"
+							checked={inputs.useAllEquity}
+							onchange={(e) => {
+								if (e.currentTarget.checked) inputs.useAllEquity = true;
+								else setShare(Math.round(sc.share * 2) / 2);
+							}}
+						/>
+						Alle Eigenmittel einsetzen (kleinster Kredit)
+					</label>
+					{#if range}
+						<button class="link" onclick={snapToMin}>Mindest-Eigenanteil wählen (größter Kredit)</button>
+					{/if}
+				</div>
+			{/if}
 		</div>
 
 		{#if inputs.priceMode === 'equity'}
 			<div class="afford" class:warn={!allOk}>
 				<p class="afford-q">
-					Bei <strong>{split(inputs.equityShare)}</strong> (Eigenmittel : Kredit) könnt ihr euch eine Immobilie leisten um bis zu
+					Bei <strong>{split(sc.share)}</strong> (Eigenanteil : Kredit am Kaufpreis) könnt ihr euch eine Immobilie
+					leisten um bis zu
 				</p>
 				<strong class="afford-price">{eur(sc.price)} <small>Kaufpreis</small></strong>
 				<p class="afford-break">
-					Gesamtkosten {eur(sc.totalCost)} = {eur(sc.equityUsed)} Eigenmittel + {eur(sc.loan)} Kredit
-					· davon {eur(sc.costs)} Nebenkosten · Rate {eur(sc.monthly)}/Monat ({inputs.termYears} J., {rate(sc.rate)})
+					Kaufpreis = {eur(sc.price - sc.loan)} Eigenanteil + {eur(sc.loan)} Kredit · dazu {eur(sc.costs)} Nebenkosten
+					aus Eigenmitteln · Rate {eur(sc.monthly)}/Monat ({inputs.termYears} J., {rate(sc.rate)})
 				</p>
 				{#if !sc.checks.ltv}
 					<p class="bad">
-						✗ Zu wenig Eigenmittel: Die Bank finanziert max. {inputs.limits.ltv} % des Kaufpreises. Ihr braucht
-						mindestens {split(Math.ceil((range?.min ?? aff.minEquitySharePct) * 2) / 2)}.
+						✗ Die Bank finanziert max. {inputs.limits.ltv} % des Kaufpreises. Ihr braucht mindestens
+						{split(range ? snapShare(range, 'min') : aff.minEquitySharePct)}.
 					</p>
 				{:else if !sc.checks.dsti}
 					<p class="bad">
-						✗ Die Rate übersteigt {inputs.limits.dsti} % eures Einkommens. Mit eurem Einkommen geht sich
-						höchstens {eur(aff.maxPrice)} aus{range ? ` (bei ${split(Math.ceil(range.min * 2) / 2)})` : ''}.
+						✗ Die Rate übersteigt {inputs.limits.dsti} % eures Einkommens{sc.stressed ? ' (mit Stresszins geprüft)' : ''}.
+						Mit eurem Einkommen geht sich höchstens {eur(aff.maxPrice)} aus{range
+							? ` (bei ${split(snapShare(range, 'min'))})`
+							: ''}.
 					</p>
 				{:else}
 					<p class="okc">✓ Erfüllt alle Kreditvergaberegeln.</p>
@@ -246,11 +313,11 @@
 			<div class="scroll">
 				<table class="data splits">
 					<thead>
-						<tr><th>Eigenmittel : Kredit</th><th>Max. Kaufpreis</th><th>Kredit</th><th>Monatsrate</th><th>Regeln</th></tr>
+						<tr><th>Eigenanteil : Kredit</th><th>Kaufpreis</th><th>Kredit</th><th>Monatsrate</th><th>Regeln</th></tr>
 					</thead>
 					<tbody>
 						{#each splitRows as { share, s } (share)}
-							<tr class:current={share === inputs.equityShare} onclick={() => (inputs.equityShare = share)}>
+							<tr class:current={share === sc.share} onclick={() => setShare(share)}>
 								<td>{split(share)}</td>
 								<td>{eur(s.price)}</td>
 								<td>{eur(s.loan)}</td>
@@ -264,8 +331,8 @@
 				</table>
 			</div>
 			<p class="muted small">
-				Alle {eur(aff.equity)} Eigenmittel werden eingesetzt, Nebenkosten inklusive. Klickt auf eine Zeile, um die
-				Aufteilung zu übernehmen.
+				Alle {eur(aff.equity)} Eigenmittel werden eingesetzt: Eigenanteil am Kaufpreis plus Nebenkosten. Klickt
+				auf eine Zeile, um die Aufteilung zu übernehmen.
 			</p>
 		{/if}
 
@@ -338,16 +405,19 @@
 			</li>
 			<li class:ok={sc.checks.dsti}>
 				<b>{sc.checks.dsti ? '✓' : '✗'}</b>
-				Schuldendienstquote {pct(sc.assessedDstiPct)} des Einkommens
-				<span>
-					max. {inputs.limits.dsti} %{stressed
-						? ` · geprüft mit ${rate(sc.rate + inputs.limits.stressAddon)}: ${eur(sc.assessedMonthly)}/Monat`
-						: ''}
-				</span>
+				{#if sc.stressed}
+					Schuldendienstquote {pct(sc.assessedDstiPct)} mit Stresszins
+					<span>
+						max. {inputs.limits.dsti} % · geprüft mit {rate(sc.rate + inputs.limits.stressAddon)}:
+						{eur(sc.assessedMonthly)}/Monat · mit eurer echten Rate: {pct(sc.dstiPct)}
+					</span>
+				{:else}
+					Schuldendienstquote {pct(sc.dstiPct)} des Einkommens <span>max. {inputs.limits.dsti} %</span>
+				{/if}
 			</li>
 			<li class:ok={sc.checks.equity}>
 				<b>{sc.checks.equity ? '✓' : '✗'}</b>
-				Benötigte Eigenmittel {eur(sc.equityUsed)} <span>vorhanden: {eur(aff.equity)}</span>
+				Eingesetzte Eigenmittel {eur(sc.equityUsed)} <span>vorhanden: {eur(aff.equity)}</span>
 			</li>
 			{#if !sc.checks.term}
 				<li><b>✗</b> Laufzeit über {inputs.limits.maxTerm} Jahre</li>
@@ -443,7 +513,7 @@
 		<div class="scroll">
 			<table class="data">
 				<thead>
-					<tr><th>Laufzeit</th><th>Monatsrate</th><th>Zinsen gesamt</th><th>Gesamt bezahlt</th><th>Schuldendienstquote</th></tr>
+					<tr><th>Laufzeit</th><th>Monatsrate</th><th>Zinsen gesamt</th><th>Gesamt bezahlt</th><th>Schuldendienstquote (Prüfung)</th></tr>
 				</thead>
 				<tbody>
 					{#each comparison as { t, s } (t)}
@@ -452,13 +522,23 @@
 							<td>{eur(s.monthly)}</td>
 							<td>{eur(s.totalInterest)}</td>
 							<td>{eur(s.totalPaid)}</td>
-							<td class:bad={!s.checks.dsti}>{pct(s.assessedDstiPct)} {s.checks.dsti ? '' : '✗'}</td>
+							<td class:bad={!s.checks.dsti}>
+								{pct(s.assessedDstiPct)}{s.stressed ? '*' : ''}
+								{s.checks.dsti ? '' : '✗'}
+							</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
 		</div>
-		<p class="muted small">Gleicher Kreditbetrag und Zinssatz für jede Laufzeit. Klickt auf eine Zeile, um sie auszuwählen.</p>
+		<p class="muted small">
+			Gleicher Kredit und gleicher Zinssatz der gewählten Zinsbindung ({rate(sc.rate)}) für jede Laufzeit.
+			{#if comparison.some(({ s }) => s.stressed)}
+				* Mit Stresszins (+{shareFmt.format(inputs.limits.stressAddon)} %-Pkt.) geprüft, weil die Fixzinsphase
+				kürzer als die Laufzeit und unter 10 Jahren ist.
+			{/if}
+			Klickt auf eine Zeile, um sie auszuwählen.
+		</p>
 	</section>
 
 	<!-- 7. Annahmen -->
@@ -511,8 +591,9 @@
 					</li>
 					<li>
 						<b>Die Nebenkosten zahlt ihr aus Eigenmitteln.</b> Der Kredit darf höchstens 90 % des
-						Immobilienwerts betragen, die rund 8–12 % Kaufnebenkosten kommen noch dazu. Deshalb verlangen
-						Banken meist etwa 20 % des Kaufpreises an Eigenmitteln.
+						Immobilienwerts betragen, die rund 7–12 % Kaufnebenkosten kommen noch dazu. Mit euren Annahmen
+						braucht ihr deshalb mindestens {pct(aff.minOwnFundsPctOfPrice)} des Kaufpreises an Eigenmitteln
+						(oft als „20 % Eigenkapital“ bezeichnet). Am meisten macht die Maklerprovision aus.
 					</li>
 					<li>
 						<b>Maßgeblich ist das Nettoeinkommen.</b> 13. und 14. Gehalt dürfen auf 12 Monate verteilt
@@ -696,10 +777,6 @@
 		color: var(--text-muted);
 		margin-left: 4px;
 	}
-	.lead {
-		margin: -8px 0 12px;
-		color: var(--text-secondary);
-	}
 	.kpis {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -740,9 +817,6 @@
 		padding: 0;
 		margin-top: 12px;
 		font-weight: 600;
-	}
-	.slider-note .link {
-		margin: 0 0 0 6px;
 	}
 	.seg,
 	.chips {
@@ -825,6 +899,30 @@
 		margin: 0;
 		accent-color: var(--accent);
 		background: transparent;
+	}
+	.kpi.main {
+		border-color: var(--accent-border);
+	}
+	.why {
+		margin-top: 14px;
+		font-size: 14px;
+		line-height: 1.5;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.why p {
+		margin: 0;
+	}
+	.slider-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 20px;
+		margin-top: 10px;
+	}
+	.slider-actions .link {
+		margin: 0;
 	}
 	.afford {
 		margin-top: 16px;
