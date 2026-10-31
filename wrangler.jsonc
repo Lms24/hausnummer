@@ -1,0 +1,9 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "hausnummer",
+	"compatibility_date": "2026-10-01",
+	// Static files only: no Worker code runs, nothing is logged by the app.
+	"assets": {
+		"directory": "./build"
+	}
+}
