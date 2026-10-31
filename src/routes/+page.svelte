@@ -70,7 +70,7 @@
 </script>
 
 <svelte:head>
-	<title>Eigenheimlich – Wohnkreditrechner für Wien</title>
+	<title>Hausnummer – Wohnkreditrechner für Wien</title>
 	<meta
 		name="description"
 		content="Privater Wohnkreditrechner für den Immobilienkauf in und um Wien – nach den österreichischen Kreditvergaberegeln."
@@ -84,8 +84,8 @@
 			<path d="M12 28v-7a4 4 0 0 1 8 0v7" fill="var(--surface-1)" />
 		</svg>
 		<div>
-			<h1>Eigenheimlich</h1>
-			<p>Wohnkredit-Rechner für ein Zuhause in und um Wien. Eure Zahlen bleiben in diesem Browser.</p>
+			<h1>Hausnummer</h1>
+			<p>Gebt eure Zahlen ein, ihr bekommt eine Hausnummer: was ihr euch in und um Wien leisten könnt. Alles bleibt in diesem Browser.</p>
 		</div>
 	</div>
 </header>
@@ -549,7 +549,7 @@
 
 <footer>
 	<p>
-		Eigenheimlich speichert eure Eingaben nur in diesem Browser (localStorage). Keine Konten, keine Analyse,
+		Hausnummer speichert eure Eingaben nur in diesem Browser (localStorage). Keine Konten, keine Analyse,
 		kein Tracking.
 	</p>
 </footer>

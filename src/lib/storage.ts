@@ -2,7 +2,9 @@ import type { Inputs } from './calc';
 import { defaultInputs } from './defaults';
 
 // Everything stays in this browser's localStorage. Nothing is sent anywhere.
-const KEY = 'eigenheimlich:v1';
+const KEY = 'hausnummer:v1';
+// The app was called Eigenheimlich before; still read inputs saved under that name.
+const LEGACY_KEY = 'eigenheimlich:v1';
 
 /** Deep-merge saved values over defaults so new fields survive old saves. */
 function merge<T>(base: T, saved: unknown): T {
@@ -21,7 +23,7 @@ function merge<T>(base: T, saved: unknown): T {
 
 export function load(): Inputs {
 	try {
-		const raw = localStorage.getItem(KEY);
+		const raw = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY);
 		if (raw) {
 			const inputs = merge(defaultInputs(), JSON.parse(raw));
 			// The UI used to be English; translate untouched default names.
@@ -46,6 +48,7 @@ export function save(inputs: Inputs): void {
 export function clear(): void {
 	try {
 		localStorage.removeItem(KEY);
+		localStorage.removeItem(LEGACY_KEY);
 	} catch {
 		// ignore
 	}

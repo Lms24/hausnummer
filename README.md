@@ -1,10 +1,13 @@
-# Eigenheimlich
+# Hausnummer
 
-*Eigenheim* (one's own home) + *heimlich* (secretly): a private mortgage calculator for buying a home in or near Vienna, using Austrian lending rules.
+> „Gib mir a Hausnummer!“ is Austrian for "give me a ballpark figure".
+
+A private mortgage calculator that gives you exactly that for buying a home in or near Vienna, using Austrian lending rules. The UI is in German.
 
 - Enter both net salaries (12× or 14× per year) and your own funds
 - See the maximum loan and purchase price the Austrian rules allow
 - Use a slider to set the split between own funds (Eigenmittel) and loan (Fremdkapital), with the allowed range shown in green
+- Using all your own funds: see the maximum purchase price for any split (e.g. 50 : 50)
 - Pick a term (5–35 years) and a rate type (variable or 5–30 years fixed)
 - Monthly payment, principal vs. interest per month, per year and in total, plus a comparison of all terms
 
