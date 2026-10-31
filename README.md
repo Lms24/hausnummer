@@ -23,6 +23,12 @@ npm run dev        # http://localhost:5173
 npm run build      # static site in ./build, host it anywhere
 ```
 
+## Deploy
+
+Live at **https://hausnummer.at**, served as static assets by Cloudflare Workers (see `wrangler.jsonc`).
+
+Every push to `main` is built and deployed automatically by Cloudflare Workers Builds. To deploy manually from your machine: `npm run deploy`.
+
 ## Austrian rules used (as of October 2026)
 
 | Rule | Value | Notes |
